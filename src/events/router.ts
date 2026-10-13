@@ -56,17 +56,19 @@ export const createRouter = ({
         outcome = 'dropped';
         return;
       }
-      if (!(err instanceof NotYetKnownError)) {
-        if (err instanceof DeadLetterError) outcome = 'dead_lettered';
+      try {
+        if (!(err instanceof NotYetKnownError)) throw err;
+        await park(message, properties, err);
+        outcome = 'parked';
+      } catch (failure) {
+        if (failure instanceof DeadLetterError) outcome = 'dead_lettered';
         const attempts = (failedAttempts.get(properties) ?? 0) + 1;
         failedAttempts.set(properties, attempts);
-        if (err instanceof DeadLetterError || attempts >= maxRetries) {
-          Sentry.captureException(err, { tags: { event } });
+        if (failure instanceof DeadLetterError || attempts >= maxRetries) {
+          Sentry.captureException(failure, { tags: { event } });
         }
-        throw err;
+        throw failure;
       }
-      await park(message, properties, err);
-      outcome = 'parked';
     } finally {
       inHand.delete(handling);
       metrics.observe(event, outcome, Date.now() - started);

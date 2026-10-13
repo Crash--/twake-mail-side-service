@@ -194,6 +194,27 @@ describe('createRouter', () => {
     );
   });
 
+  it('counts a failed parking as an attempt toward the Sentry report', async () => {
+    const route = createRouter({
+      handlers: {
+        'team-mailbox.message.received': vi
+          .fn()
+          .mockRejectedValueOnce(new NotYetKnownError('x'))
+          .mockRejectedValue(new Error('tmail down')),
+      },
+      park: vi.fn().mockRejectedValue(new Error('database down')),
+      logger: silentLogger,
+      metrics: createMetrics(),
+      maxRetries: 2,
+    });
+    const delivery = props('team-mailbox.message.received');
+
+    await expect(route({}, delivery)).rejects.toThrow('database down');
+    await expect(route({}, delivery)).rejects.toThrow('tmail down');
+
+    expect(Sentry.captureException).toHaveBeenCalledOnce();
+  });
+
   it('knows since when the oldest message in hand was received', async () => {
     let finish = () => {};
     const route = createRouter({
