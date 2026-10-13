@@ -76,7 +76,7 @@ Parked event replays do not go through the router, so they are not in `tmss_mess
 
 ## Error reports
 
-With `SENTRY_DSN` set, the service reports to Sentry each failed handler attempt (a parked or malformed event is not a failure), a failure to start, and a failure during shutdown. Reports carry the release `twake-mail-side-service@<version>`, the tag `service` and, for a handler, the tag `event` (the routing key). A handler retried 8 times reports 8 times. `SENTRY_ENVIRONMENT` names the environment. Without `SENTRY_DSN`, nothing is sent.
+With `SENTRY_DSN` set, the service reports to Sentry each event its handler sends to the dead letter queue (refused for good, or failed on its last retry), a failure to start, and a failure during shutdown. Earlier failed attempts are only logged, and a parked or malformed event is not reported. Reports carry the release `twake-mail-side-service@<version>`, the tag `service` and, for a handler, the tag `event` (the routing key). `SENTRY_ENVIRONMENT` names the environment. Without `SENTRY_DSN`, nothing is sent.
 
 ## Dead letters
 
