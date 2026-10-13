@@ -1,12 +1,49 @@
-import { describe, expect, it, vi } from 'vitest';
+import * as Sentry from '@sentry/node';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMetrics } from '../infra/metrics.js';
 import { silentLogger } from '../testing/helpers.js';
 import { MalformedEventError, NotYetKnownError, RejectedEventError } from './errors.js';
 import { createRouter } from './router.js';
 
+vi.mock('@sentry/node', () => ({ captureException: vi.fn() }));
+
 const props = (routingKey: string) => ({ exchange: 'space', routingKey, headers: {} });
 
 describe('createRouter', () => {
+  beforeEach(() => vi.mocked(Sentry.captureException).mockClear());
+
+  it('reports a failing message to Sentry on its last attempt only', async () => {
+    const route = createRouter({
+      handlers: { 'dns.validated': vi.fn().mockRejectedValue(new Error('tmail down')) },
+      park: vi.fn(),
+      logger: silentLogger,
+      metrics: createMetrics(),
+      maxRetries: 3,
+    });
+    const delivery = props('dns.validated');
+
+    await expect(route({}, delivery)).rejects.toThrow('tmail down');
+    await expect(route({}, delivery)).rejects.toThrow('tmail down');
+    expect(Sentry.captureException).not.toHaveBeenCalled();
+
+    await expect(route({}, delivery)).rejects.toThrow('tmail down');
+    expect(Sentry.captureException).toHaveBeenCalledOnce();
+  });
+
+  it('reports a message refused for good to Sentry on its first attempt', async () => {
+    const route = createRouter({
+      handlers: { 'twake.space.created': vi.fn().mockRejectedValue(new RejectedEventError('no')) },
+      park: vi.fn(),
+      logger: silentLogger,
+      metrics: createMetrics(),
+      maxRetries: 3,
+    });
+
+    await expect(route({}, props('twake.space.created'))).rejects.toThrow('no');
+
+    expect(Sentry.captureException).toHaveBeenCalledOnce();
+  });
+
   it('drops a malformed event', async () => {
     const metrics = createMetrics();
     const route = createRouter({
@@ -16,6 +53,7 @@ describe('createRouter', () => {
       park: vi.fn(),
       logger: silentLogger,
       metrics,
+      maxRetries: 3,
     });
 
     await expect(route({}, props('dns.validated'))).resolves.toBeUndefined();
@@ -33,6 +71,7 @@ describe('createRouter', () => {
       park: vi.fn(),
       logger: silentLogger,
       metrics: createMetrics(),
+      maxRetries: 3,
     });
 
     await route({ id: 's1' }, props('twake.space.created'));
@@ -42,7 +81,13 @@ describe('createRouter', () => {
 
   it('acks a routing key it has no handler for', async () => {
     const metrics = createMetrics();
-    const route = createRouter({ handlers: {}, park: vi.fn(), logger: silentLogger, metrics });
+    const route = createRouter({
+      handlers: {},
+      park: vi.fn(),
+      logger: silentLogger,
+      metrics,
+      maxRetries: 3,
+    });
 
     await expect(route({}, props('twake.space.group.linked'))).resolves.toBeUndefined();
 
@@ -64,6 +109,7 @@ describe('createRouter', () => {
         park: vi.fn(),
         logger: silentLogger,
         metrics,
+        maxRetries: 3,
       });
 
       await route({}, props('twake.space.updated'));
@@ -82,6 +128,7 @@ describe('createRouter', () => {
       park: vi.fn(),
       logger: silentLogger,
       metrics,
+      maxRetries: 3,
     });
 
     await expect(route({}, props('twake.space.created'))).rejects.toThrow('no');
@@ -103,6 +150,7 @@ describe('createRouter', () => {
       park,
       logger: silentLogger,
       metrics,
+      maxRetries: 3,
     });
 
     await expect(
@@ -131,6 +179,7 @@ describe('createRouter', () => {
       park: vi.fn().mockRejectedValue(new Error('database down')),
       logger: silentLogger,
       metrics,
+      maxRetries: 3,
     });
 
     await expect(route({}, props('team-mailbox.message.received'))).rejects.toThrow(
@@ -145,6 +194,27 @@ describe('createRouter', () => {
     );
   });
 
+  it('counts a failed parking as an attempt toward the Sentry report', async () => {
+    const route = createRouter({
+      handlers: {
+        'team-mailbox.message.received': vi
+          .fn()
+          .mockRejectedValueOnce(new NotYetKnownError('x'))
+          .mockRejectedValue(new Error('tmail down')),
+      },
+      park: vi.fn().mockRejectedValue(new Error('database down')),
+      logger: silentLogger,
+      metrics: createMetrics(),
+      maxRetries: 2,
+    });
+    const delivery = props('team-mailbox.message.received');
+
+    await expect(route({}, delivery)).rejects.toThrow('database down');
+    await expect(route({}, delivery)).rejects.toThrow('tmail down');
+
+    expect(Sentry.captureException).toHaveBeenCalledOnce();
+  });
+
   it('knows since when the oldest message in hand was received', async () => {
     let finish = () => {};
     const route = createRouter({
@@ -155,6 +225,7 @@ describe('createRouter', () => {
       park: vi.fn(),
       logger: silentLogger,
       metrics: createMetrics(),
+      maxRetries: 3,
     });
 
     expect(route.busySince()).toBeUndefined();
@@ -175,6 +246,7 @@ describe('createRouter', () => {
       park: vi.fn(),
       logger: silentLogger,
       metrics,
+      maxRetries: 3,
     });
 
     await expect(route({}, props('dns.validated'))).rejects.toThrow('tmail down');

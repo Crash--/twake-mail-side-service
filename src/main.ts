@@ -78,7 +78,13 @@ const main = async (): Promise<void> => {
     maxWaitMs: config.PARKING_MAX_WAIT_MS,
     logger,
   });
-  const route = createRouter({ handlers, park: parking.park, logger, metrics });
+  const route = createRouter({
+    handlers,
+    park: parking.park,
+    logger,
+    metrics,
+    maxRetries: config.RABBITMQ_MAX_RETRIES,
+  });
   const health = createHealthServer({
     port: config.HEALTH_PORT,
     metricsPort: config.METRICS_PORT,
