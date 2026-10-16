@@ -41,6 +41,7 @@ interface SpaceServiceDeps {
   tmail: TmailClient;
   activity: Activity;
   logger: Logger;
+  addressPrefix: string;
 }
 
 // TMail team mailboxes have no read-only access, so viewers get none.
@@ -78,6 +79,7 @@ export const createSpaceService = ({
   tmail,
   activity,
   logger,
+  addressPrefix,
 }: SpaceServiceDeps): SpaceService => {
   // Events about one space run one at a time, across replicas, from reading it to the last
   // TMail call; each reads the space again once it holds the lock.
@@ -114,6 +116,11 @@ export const createSpaceService = ({
           `${address} is a team mailbox no space holds, store it as space ${spaceId}'s address to use it`,
         );
       }
+      // Only for a new address: a stored one may already be this space's mailbox.
+      if (await tmail.isMailingList(address)) {
+        logger.info({ spaceId, address }, 'address held by a mailing list, trying the next one');
+        continue;
+      }
       try {
         // Stored before TMail is called, so a retry resumes with the same address.
         await db.update(spaces).set({ address }).where(eq(spaces.spaceId, spaceId));
@@ -126,7 +133,10 @@ export const createSpaceService = ({
         return address;
       } catch (err) {
         if (!(err instanceof AddressTakenError)) throw err;
-        logger.info({ spaceId, address }, 'address held by a user or alias, trying the next one');
+        logger.info(
+          { spaceId, address },
+          'address held by a user, alias or group, trying the next one',
+        );
       }
     }
     throw new Error(`no free team mailbox address for ${name}@${domain}`);
@@ -154,7 +164,11 @@ export const createSpaceService = ({
         address = null;
       }
     }
-    address ??= await pickAddress(spaceId, mailboxName(space.name), organization.domain);
+    address ??= await pickAddress(
+      spaceId,
+      mailboxName(space.name, addressPrefix),
+      organization.domain,
+    );
 
     const { name, domain } = splitAddress(address);
     // The mailbox may predate the space's row, linked by hand, with members it no longer has.

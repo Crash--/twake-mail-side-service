@@ -26,6 +26,11 @@ const envSchema = z.object({
 
   TMAIL_WEBADMIN_URL: z.url(),
   TMAIL_WEBADMIN_PASSWORD: z.string().optional(),
+  TEAM_MAILBOX_PREFIX: z
+    .string()
+    .regex(/^([a-z0-9_]+-)?$/, 'lowercase letters, digits or _, ending with a dash')
+    .max(32)
+    .default(''),
 
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
   HEALTH_PORT: positiveInt.default(8080),

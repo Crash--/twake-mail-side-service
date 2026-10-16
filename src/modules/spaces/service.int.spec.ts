@@ -97,6 +97,7 @@ const service = () =>
     tmail,
     activity: createActivity('activity'),
     logger: silentLogger,
+    addressPrefix: '',
   });
 
 const provisioned = async () => {
@@ -141,6 +142,7 @@ beforeEach(async () => {
   tmail = {
     listTeamMailboxes: vi.fn().mockResolvedValue([]),
     createTeamMailbox: vi.fn().mockResolvedValue(undefined),
+    isMailingList: vi.fn().mockResolvedValue(false),
     deleteTeamMailbox: vi.fn().mockResolvedValue(undefined),
     rootMailboxId: vi.fn(async (_domain: string, name: string) => `id-${name}`),
     listMembers: vi.fn(async (domain: string, name: string) =>
@@ -179,6 +181,39 @@ describe('space service', () => {
     ]);
     const [stored] = await client.db.select().from(spaces).where(eq(spaces.spaceId, SPACE));
     expect(stored).toMatchObject({ address: 'sales-eu@acme.com', mailboxId: 'id-sales-eu' });
+  });
+
+  it("names the team mailbox with the deployment's prefix", async () => {
+    const prefixed = createSpaceService({
+      db: client.db,
+      lock: client.withLock,
+      tmail,
+      activity: createActivity('activity'),
+      logger: silentLogger,
+      addressPrefix: 'space-',
+    });
+    await prefixed.dnsValidated(validated());
+    await prefixed.spaceCreated(created());
+
+    expect(tmail.createTeamMailbox).toHaveBeenCalledWith('acme.com', 'space-sales-eu');
+    const [stored] = await client.db.select().from(spaces).where(eq(spaces.spaceId, SPACE));
+    expect(stored).toMatchObject({ address: 'space-sales-eu@acme.com' });
+  });
+
+  it("skips a mailing list's address, but not when resuming with the stored one", async () => {
+    tmail.isMailingList.mockImplementation(async (address) => address === 'sales-eu@acme.com');
+    tmail.rootMailboxId.mockRejectedValueOnce(new Error('TMail down'));
+    await service().dnsValidated(validated());
+    await expect(service().spaceCreated(created())).rejects.toThrow('TMail down');
+
+    expect(tmail.createTeamMailbox).toHaveBeenCalledWith('acme.com', 'sales-eu-2');
+    expect(tmail.createTeamMailbox).not.toHaveBeenCalledWith('acme.com', 'sales-eu');
+
+    tmail.isMailingList.mockResolvedValue(true);
+    await service().spaceCreated(created());
+
+    const [stored] = await client.db.select().from(spaces).where(eq(spaces.spaceId, SPACE));
+    expect(stored).toMatchObject({ address: 'sales-eu-2@acme.com', mailboxId: 'id-sales-eu-2' });
   });
 
   it('provisions a space once when two events about it are handled at the same time', async () => {

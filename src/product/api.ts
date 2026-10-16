@@ -87,6 +87,19 @@ export const createTmailClient = ({
         throw err;
       }
     },
+    // TMail creates a team mailbox over an LDAP mailing list's address, whose mail then goes to
+    // the list. 404 is no such list, 409 a TMail that reads no lists.
+    async isMailingList(address) {
+      try {
+        await call('isMailingList', 'GET', `/mailingLists/${encodeURIComponent(address)}`);
+        return true;
+      } catch (err) {
+        if (isNotFound(err) || (err instanceof TmailRejectedError && err.status === 409)) {
+          return false;
+        }
+        throw err;
+      }
+    },
     // 404 means the domain is gone, and its team mailboxes with it.
     async deleteTeamMailbox(domain, name) {
       try {

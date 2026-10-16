@@ -15,12 +15,14 @@ let server: http.Server;
 let baseUrl: string;
 let requests: Recorded[];
 let reply: { status: number; body?: string };
+let listReply: { status: number; body?: string };
 
 beforeAll(async () => {
   server = http.createServer((req, res) => {
     requests.push({ method: req.method, url: req.url, password: req.headers.password });
-    res.writeHead(reply.status, { 'content-type': 'application/json' });
-    res.end(reply.body);
+    const answer = req.url?.startsWith('/mailingLists/') ? listReply : reply;
+    res.writeHead(answer.status, { 'content-type': 'application/json' });
+    res.end(answer.body);
   });
   await new Promise<void>((resolve) => server.listen(0, resolve));
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}/`;
@@ -34,6 +36,7 @@ afterAll(async () => {
 beforeEach(() => {
   requests = [];
   reply = { status: 204 };
+  listReply = { status: 404, body: '{"message":"not found"}' };
 });
 
 const client = () => createTmailClient({ baseUrl, password: 'secret' });
@@ -53,6 +56,30 @@ describe('createTmailClient', () => {
     await expect(client().createTeamMailbox('acme.com', 'sales')).rejects.toBeInstanceOf(
       AddressTakenError,
     );
+  });
+
+  it('finds an address held by a mailing list', async () => {
+    listReply = { status: 200, body: '{"mailingList":"sales@acme.com"}' };
+
+    await expect(client().isMailingList('sales@acme.com')).resolves.toBe(true);
+    expect(requests).toEqual([
+      { method: 'GET', url: '/mailingLists/sales%40acme.com', password: 'secret' },
+    ]);
+  });
+
+  it.each([
+    [404, 'no such list'],
+    [409, 'a TMail that reads no lists'],
+  ])('reads a %i as no mailing list (%s)', async (status) => {
+    listReply = { status, body: '{"message":"no"}' };
+
+    await expect(client().isMailingList('sales@acme.com')).resolves.toBe(false);
+  });
+
+  it('leaves a failing mailing list lookup to be retried', async () => {
+    listReply = { status: 503, body: 'down' };
+
+    await expect(client().isMailingList('sales@acme.com')).rejects.toBeInstanceOf(TmailError);
   });
 
   it("lists a domain's team mailbox names", async () => {

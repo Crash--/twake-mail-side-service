@@ -5,6 +5,7 @@ export type TeamMailboxRole = 'manager' | 'member';
 export interface TmailClient {
   listTeamMailboxes(domain: string): Promise<string[]>;
   createTeamMailbox(domain: string, name: string): Promise<void>;
+  isMailingList(address: string): Promise<boolean>;
   deleteTeamMailbox(domain: string, name: string): Promise<void>;
   rootMailboxId(domain: string, name: string): Promise<string>;
   listMembers(domain: string, name: string): Promise<{ username: string; role: TeamMailboxRole }[]>;
