@@ -11,11 +11,11 @@ describe('mailboxName', () => {
     ['🚀', 'space'],
     ['', 'space'],
   ])('turns %j into %j', (name, expected) => {
-    expect(mailboxName(name)).toBe(expected);
+    expect(mailboxName(name, '')).toBe(expected);
   });
 
   it('caps the name at 64 characters without a trailing dash', () => {
-    const name = mailboxName(`${'a'.repeat(63)} b`);
+    const name = mailboxName(`${'a'.repeat(63)} b`, '');
     expect(name).toBe('a'.repeat(63));
   });
 

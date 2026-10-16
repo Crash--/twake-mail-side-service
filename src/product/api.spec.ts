@@ -46,7 +46,6 @@ describe('createTmailClient', () => {
     await client().createTeamMailbox('acme.com', 'sales');
 
     expect(requests).toEqual([
-      { method: 'GET', url: '/mailingLists/sales%40acme.com', password: 'secret' },
       { method: 'PUT', url: '/domains/acme.com/team-mailboxes/sales', password: 'secret' },
     ]);
   });
@@ -59,30 +58,28 @@ describe('createTmailClient', () => {
     );
   });
 
-  it('reports an address held by a mailing list, without creating the mailbox', async () => {
+  it('finds an address held by a mailing list', async () => {
     listReply = { status: 200, body: '{"mailingList":"sales@acme.com"}' };
 
-    await expect(client().createTeamMailbox('acme.com', 'sales')).rejects.toBeInstanceOf(
-      AddressTakenError,
-    );
-    expect(requests.map((r) => r.method)).toEqual(['GET']);
+    await expect(client().isMailingList('sales@acme.com')).resolves.toBe(true);
+    expect(requests).toEqual([
+      { method: 'GET', url: '/mailingLists/sales%40acme.com', password: 'secret' },
+    ]);
   });
 
-  it('creates the mailbox when TMail reads no mailing lists', async () => {
-    listReply = { status: 409, body: '{"message":"no baseDN"}' };
+  it.each([
+    [404, 'no such list'],
+    [409, 'a TMail that reads no lists'],
+  ])('reads a %i as no mailing list (%s)', async (status) => {
+    listReply = { status, body: '{"message":"no"}' };
 
-    await client().createTeamMailbox('acme.com', 'sales');
-
-    expect(requests.map((r) => r.method)).toEqual(['GET', 'PUT']);
+    await expect(client().isMailingList('sales@acme.com')).resolves.toBe(false);
   });
 
   it('leaves a failing mailing list lookup to be retried', async () => {
     listReply = { status: 503, body: 'down' };
 
-    await expect(client().createTeamMailbox('acme.com', 'sales')).rejects.toBeInstanceOf(
-      TmailError,
-    );
-    expect(requests.map((r) => r.method)).toEqual(['GET']);
+    await expect(client().isMailingList('sales@acme.com')).rejects.toBeInstanceOf(TmailError);
   });
 
   it("lists a domain's team mailbox names", async () => {
@@ -208,7 +205,7 @@ describe('createTmailClient', () => {
     expect(calls).toEqual([
       ['addMember', '401', expect.any(Number)],
       ['removeMember', '204', expect.any(Number)],
-      ['findMailingList', 'error', expect.any(Number)],
+      ['createTeamMailbox', 'error', expect.any(Number)],
     ]);
   });
 
