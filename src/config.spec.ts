@@ -52,6 +52,19 @@ describe('loadConfig', () => {
     expect(cfg.HEALTH_PORT).toBe(9090);
   });
 
+  it('takes a team mailbox prefix ending with a dash, none by default', () => {
+    expect(loadConfig(baseEnv).TEAM_MAILBOX_PREFIX).toBe('');
+    expect(loadConfig({ ...baseEnv, TEAM_MAILBOX_PREFIX: 'space-' }).TEAM_MAILBOX_PREFIX).toBe(
+      'space-',
+    );
+    expect(() => loadConfig({ ...baseEnv, TEAM_MAILBOX_PREFIX: 'space' })).toThrow(
+      /TEAM_MAILBOX_PREFIX/,
+    );
+    expect(() => loadConfig({ ...baseEnv, TEAM_MAILBOX_PREFIX: 'Space-' })).toThrow(
+      /TEAM_MAILBOX_PREFIX/,
+    );
+  });
+
   it('rejects an unknown log level', () => {
     expect(() => loadConfig({ ...baseEnv, LOG_LEVEL: 'verbose' })).toThrow(/LOG_LEVEL/);
   });

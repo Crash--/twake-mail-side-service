@@ -14,7 +14,7 @@ export interface TmailOptions {
   onCall?: (operation: string, result: string, durationMs: number) => void;
 }
 
-type Operation = keyof TmailClient;
+type Operation = keyof TmailClient | 'findMailingList';
 
 // One attempt per call: the broker client retries the handler, then dead-letters.
 const TIMEOUT_MS = 10_000;
@@ -68,6 +68,20 @@ export const createTmailClient = ({
   const member = (domain: string, name: string, user: string) =>
     `${teamMailbox(domain, name)}/members/${encodeURIComponent(user)}`;
 
+  // TMail creates a team mailbox over an LDAP mailing list's address, whose mail then goes to the
+  // list. It answers 404 for no such list, 409 when it reads no lists at all.
+  const isMailingList = async (address: string) => {
+    try {
+      await call('findMailingList', 'GET', `/mailingLists/${encodeURIComponent(address)}`);
+      return true;
+    } catch (err) {
+      if (isNotFound(err) || (err instanceof TmailRejectedError && err.status === 409)) {
+        return false;
+      }
+      throw err;
+    }
+  };
+
   return {
     async listTeamMailboxes(domain) {
       const res = await call(
@@ -78,6 +92,9 @@ export const createTmailClient = ({
       return ((await res.json()) as { name: string }[]).map((m) => m.name);
     },
     async createTeamMailbox(domain, name) {
+      if (await isMailingList(`${name}@${domain}`)) {
+        throw new AddressTakenError(409, `${name}@${domain} is a mailing list`);
+      }
       try {
         await call('createTeamMailbox', 'PUT', teamMailbox(domain, name));
       } catch (err) {

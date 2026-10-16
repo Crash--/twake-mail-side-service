@@ -4,7 +4,8 @@ const CANDIDATES = 20;
 
 const trimDashes = (value: string): string => value.replace(/^-+|-+$/g, '');
 
-export const mailboxName = (spaceName: string): string => {
+// A prefix keeps team mailboxes out of the names people, lists and role addresses use.
+export const mailboxName = (spaceName: string, prefix = ''): string => {
   const name = trimDashes(
     spaceName
       .normalize('NFD')
@@ -13,7 +14,7 @@ export const mailboxName = (spaceName: string): string => {
       .replace(/[^a-z0-9_-]+/g, '-')
       .replace(/-{2,}/g, '-'),
   );
-  return trimDashes(name.slice(0, MAX_LENGTH)) || FALLBACK;
+  return prefix + (trimDashes(name.slice(0, MAX_LENGTH - prefix.length)) || FALLBACK);
 };
 
 export const candidateNames = (name: string): string[] =>

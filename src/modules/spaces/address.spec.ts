@@ -18,6 +18,12 @@ describe('mailboxName', () => {
     const name = mailboxName(`${'a'.repeat(63)} b`);
     expect(name).toBe('a'.repeat(63));
   });
+
+  it('starts with the prefix, within 64 characters', () => {
+    expect(mailboxName('Marketing', 'space-')).toBe('space-marketing');
+    expect(mailboxName('🚀', 'space-')).toBe('space-space');
+    expect(mailboxName('a'.repeat(70), 'space-')).toBe(`space-${'a'.repeat(58)}`);
+  });
 });
 
 describe('candidateNames', () => {

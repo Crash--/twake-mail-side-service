@@ -51,6 +51,7 @@ const main = async (): Promise<void> => {
     }),
     activity,
     logger,
+    addressPrefix: config.TEAM_MAILBOX_PREFIX,
   });
   const mail = createMailService({ db: db.db, activity, logger });
   const inbox = createInbox({ db: db.db, lock: db.withLock });

@@ -15,12 +15,14 @@ let server: http.Server;
 let baseUrl: string;
 let requests: Recorded[];
 let reply: { status: number; body?: string };
+let listReply: { status: number; body?: string };
 
 beforeAll(async () => {
   server = http.createServer((req, res) => {
     requests.push({ method: req.method, url: req.url, password: req.headers.password });
-    res.writeHead(reply.status, { 'content-type': 'application/json' });
-    res.end(reply.body);
+    const answer = req.url?.startsWith('/mailingLists/') ? listReply : reply;
+    res.writeHead(answer.status, { 'content-type': 'application/json' });
+    res.end(answer.body);
   });
   await new Promise<void>((resolve) => server.listen(0, resolve));
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}/`;
@@ -34,6 +36,7 @@ afterAll(async () => {
 beforeEach(() => {
   requests = [];
   reply = { status: 204 };
+  listReply = { status: 404, body: '{"message":"not found"}' };
 });
 
 const client = () => createTmailClient({ baseUrl, password: 'secret' });
@@ -43,6 +46,7 @@ describe('createTmailClient', () => {
     await client().createTeamMailbox('acme.com', 'sales');
 
     expect(requests).toEqual([
+      { method: 'GET', url: '/mailingLists/sales%40acme.com', password: 'secret' },
       { method: 'PUT', url: '/domains/acme.com/team-mailboxes/sales', password: 'secret' },
     ]);
   });
@@ -53,6 +57,32 @@ describe('createTmailClient', () => {
     await expect(client().createTeamMailbox('acme.com', 'sales')).rejects.toBeInstanceOf(
       AddressTakenError,
     );
+  });
+
+  it('reports an address held by a mailing list, without creating the mailbox', async () => {
+    listReply = { status: 200, body: '{"mailingList":"sales@acme.com"}' };
+
+    await expect(client().createTeamMailbox('acme.com', 'sales')).rejects.toBeInstanceOf(
+      AddressTakenError,
+    );
+    expect(requests.map((r) => r.method)).toEqual(['GET']);
+  });
+
+  it('creates the mailbox when TMail reads no mailing lists', async () => {
+    listReply = { status: 409, body: '{"message":"no baseDN"}' };
+
+    await client().createTeamMailbox('acme.com', 'sales');
+
+    expect(requests.map((r) => r.method)).toEqual(['GET', 'PUT']);
+  });
+
+  it('leaves a failing mailing list lookup to be retried', async () => {
+    listReply = { status: 503, body: 'down' };
+
+    await expect(client().createTeamMailbox('acme.com', 'sales')).rejects.toBeInstanceOf(
+      TmailError,
+    );
+    expect(requests.map((r) => r.method)).toEqual(['GET']);
   });
 
   it("lists a domain's team mailbox names", async () => {
@@ -178,7 +208,7 @@ describe('createTmailClient', () => {
     expect(calls).toEqual([
       ['addMember', '401', expect.any(Number)],
       ['removeMember', '204', expect.any(Number)],
-      ['createTeamMailbox', 'error', expect.any(Number)],
+      ['findMailingList', 'error', expect.any(Number)],
     ]);
   });
 

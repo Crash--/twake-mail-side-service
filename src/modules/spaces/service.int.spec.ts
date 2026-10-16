@@ -181,6 +181,23 @@ describe('space service', () => {
     expect(stored).toMatchObject({ address: 'sales-eu@acme.com', mailboxId: 'id-sales-eu' });
   });
 
+  it("names the team mailbox with the deployment's prefix", async () => {
+    const prefixed = createSpaceService({
+      db: client.db,
+      lock: client.withLock,
+      tmail,
+      activity: createActivity('activity'),
+      logger: silentLogger,
+      addressPrefix: 'space-',
+    });
+    await prefixed.dnsValidated(validated());
+    await prefixed.spaceCreated(created());
+
+    expect(tmail.createTeamMailbox).toHaveBeenCalledWith('acme.com', 'space-sales-eu');
+    const [stored] = await client.db.select().from(spaces).where(eq(spaces.spaceId, SPACE));
+    expect(stored).toMatchObject({ address: 'space-sales-eu@acme.com' });
+  });
+
   it('provisions a space once when two events about it are handled at the same time', async () => {
     tmail.createTeamMailbox.mockImplementation(() => new Promise((r) => setTimeout(r, 50)));
     await service().dnsValidated(validated());

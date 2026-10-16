@@ -26,6 +26,7 @@ The rest:
 - `DATABASE_URL` (required, secret): PostgreSQL URL.
 - `TMAIL_WEBADMIN_URL` (required): TMail's webadmin, for example `http://tmail-admin.tmail.svc.cluster.local:8000`.
 - `TMAIL_WEBADMIN_PASSWORD` (optional, secret): sent as the `Password` header.
+- `TEAM_MAILBOX_PREFIX` (default empty): put before each team mailbox name, like `space-` for `space-sales@acme.com`, so a space's name never takes a person's, a list's or a role address. Lowercase letters, digits or `_`, ending with a dash. It applies to new spaces only.
 - `LOG_LEVEL` (default `info`), `HEALTH_PORT` (default 8080), `METRICS_PORT` (default 9090), `SHUTDOWN_TIMEOUT_MS` (default 10000).
 - `SENTRY_DSN` (optional, secret) and `SENTRY_ENVIRONMENT` (optional): see [error reports](#error-reports).
 
