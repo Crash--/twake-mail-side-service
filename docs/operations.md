@@ -77,7 +77,7 @@ Parked event replays do not go through the router, so they are not in `tmss_mess
 
 ## Error reports
 
-With `SENTRY_DSN` set, the service reports to Sentry each event its handler sends to the dead letter queue (refused for good, or failed on its last retry), a failure to start, and a failure during shutdown. Earlier failed attempts are only logged, and a parked or malformed event is not reported. Reports carry the release `twake-mail-side-service@<version>`, the tag `service` and, for a handler, the tag `event` (the routing key). `SENTRY_ENVIRONMENT` names the environment. Without `SENTRY_DSN`, nothing is sent.
+With `SENTRY_DSN` set, the service reports to Sentry each event its handler sends to the dead letter queue (refused for good, or failed on its last retry), with the tag `event` (the routing key), and every `error` or `fatal` line it logs, such as a failure to start or during shutdown. A failure that is retried is logged as a warning, a parked or malformed event is not reported, and the RabbitMQ client's own lines stay out of Sentry. Reports carry the release `twake-mail-side-service@<version>` and the tag `service`, and leave out request data (headers, bodies, query strings, database parameters). On an unhandled promise rejection, Sentry reports it and exits with code 1, without the graceful shutdown: RabbitMQ delivers the unacknowledged message again. `SENTRY_ENVIRONMENT` names the environment. Without `SENTRY_DSN`, nothing is sent.
 
 ## Dead letters
 

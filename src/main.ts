@@ -159,7 +159,6 @@ const main = async (): Promise<void> => {
       process.exit(exitCode);
     } catch (err) {
       logger.error({ err }, 'error during shutdown');
-      Sentry.captureException(err);
       await Sentry.flush(2000);
       process.exit(1);
     }
@@ -171,15 +170,17 @@ const main = async (): Promise<void> => {
     logger.fatal({ err }, 'uncaught exception');
     void shutdown('uncaughtException', 1);
   });
-  process.on('unhandledRejection', (reason) => {
-    logger.fatal({ err: reason }, 'unhandled rejection');
-    void shutdown('unhandledRejection', 1);
-  });
+  // With a DSN, Sentry owns the exit: it reports the rejection, then exits with code 1.
+  if (!Sentry.isEnabled()) {
+    process.on('unhandledRejection', (reason) => {
+      logger.fatal({ err: reason }, 'unhandled rejection');
+      void shutdown('unhandledRejection', 1);
+    });
+  }
 };
 
 main().catch(async (err) => {
   logger.fatal({ err }, 'fatal error during startup');
-  Sentry.captureException(err);
   await Sentry.flush(2000);
   process.exit(1);
 });

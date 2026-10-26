@@ -1,4 +1,5 @@
 import { RabbitMQClient, type RabbitMQMessageHandler } from '@linagora/rabbitmq-client';
+import * as Sentry from '@sentry/node';
 import type { Logger } from 'pino';
 import type { Config } from '../config.js';
 
@@ -32,13 +33,16 @@ export const createConsumer = ({
   onSubscriptionLost,
 }: ConsumerDeps): Consumer => {
   let subscribed = false;
+  // The client logs each failed attempt as an error; the router reports the last one to Sentry.
+  const clientLogger = logger.child({});
+  Sentry.pinoIntegration.untrackLogger(clientLogger);
   const client = new RabbitMQClient({
     url: config.RABBITMQ_URL,
     retryDelay: config.RABBITMQ_RETRY_DELAY,
     prefetch: config.RABBITMQ_PREFETCH,
     // Half the budget, so closing the connection and the database still fits before the forced exit.
     closeTimeout: Math.floor(config.SHUTDOWN_TIMEOUT_MS / 2),
-    logger,
+    logger: clientLogger,
     hooks: {
       // The client never retries a failed resubscribe, so a restart is the way back.
       onReconnect: ({ subscriptionsFailed }) => {
