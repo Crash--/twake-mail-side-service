@@ -60,10 +60,7 @@ export const createOutboxRelay = ({ db, client, logger }: RelayDeps): OutboxRela
             maxAttempts: 1,
           });
         } catch (err) {
-          logger.error(
-            { err, messageId: row.messageId },
-            'outbox publish failed, retried next run',
-          );
+          logger.warn({ err, messageId: row.messageId }, 'outbox publish failed, retried next run');
           return false;
         }
         await tx.delete(outbox).where(eq(outbox.id, row.id));
@@ -77,7 +74,7 @@ export const createOutboxRelay = ({ db, client, logger }: RelayDeps): OutboxRela
 
   const tick = (intervalMs: number) => {
     running = relay()
-      .catch((err) => logger.error({ err }, 'outbox relay failed'))
+      .catch((err) => logger.warn({ err }, 'outbox relay failed'))
       .finally(() => {
         if (timer) timer = setTimeout(() => tick(intervalMs), intervalMs);
       });

@@ -245,7 +245,7 @@ export const createSpaceService = ({
       try {
         await apply(spaceId);
       } catch (err) {
-        logger.error({ err, spaceId }, 'space update failed');
+        logger.warn({ err, spaceId }, 'space update failed');
         failures.push(err);
       }
     }
@@ -454,7 +454,7 @@ export const createSpaceService = ({
           await db.update(spaces).set({ address: null }).where(eq(spaces.spaceId, spaceId));
           logger.info({ spaceId, address }, 'team mailbox deleted');
         } catch (err) {
-          logger.error({ err, spaceId }, 'team mailbox deletion failed, retried at the next purge');
+          logger.warn({ err, spaceId }, 'team mailbox deletion failed, retried at the next purge');
         }
       }
     },

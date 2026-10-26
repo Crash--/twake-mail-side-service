@@ -127,8 +127,8 @@ const main = async (): Promise<void> => {
   const purge = async () => {
     await spaces
       .purgeDeleted()
-      .catch((err) => logger.error({ err }, 'purge of deleted spaces failed'));
-    await inbox.purge().catch((err) => logger.error({ err }, 'purge of the inbox failed'));
+      .catch((err) => logger.warn({ err }, 'purge of deleted spaces failed'));
+    await inbox.purge().catch((err) => logger.warn({ err }, 'purge of the inbox failed'));
   };
   void purge();
   const purger = setInterval(() => void purge(), PURGE_INTERVAL_MS);
