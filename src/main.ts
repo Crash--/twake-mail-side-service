@@ -172,7 +172,7 @@ const main = async (): Promise<void> => {
     void shutdown('uncaughtException', 1);
   });
   process.on('unhandledRejection', (reason) => {
-    logger.fatal({ reason }, 'unhandled rejection');
+    logger.fatal({ err: reason }, 'unhandled rejection');
     void shutdown('unhandledRejection', 1);
   });
 };
