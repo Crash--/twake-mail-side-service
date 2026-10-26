@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@linagora/rabbitmq-client": "^0.7.1",
+    "@linagora/twake-node-telemetry": "^1.1.0",
     "@sentry/node": "^10.75.3",
     "drizzle-orm": "^0.45.3",
     "pino": "^10.4.0",

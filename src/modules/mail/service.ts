@@ -1,11 +1,11 @@
 import { eq } from 'drizzle-orm';
+import type { Logger } from 'pino';
 import { z } from 'zod';
 import type { Activity } from '../../events/activity.js';
 import { enqueue } from '../../events/outbox.js';
 import { NotYetKnownError } from '../../events/errors.js';
 import type { InboxKey } from '../../events/inbox.js';
 import type { Db } from '../../infra/db.js';
-import type { Logger } from '../../infra/logger.js';
 import { parseEvent } from '../spaces/events.js';
 import { spaces } from '../spaces/schema.js';
 

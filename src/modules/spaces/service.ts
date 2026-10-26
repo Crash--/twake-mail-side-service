@@ -1,10 +1,10 @@
 import { DeadLetterError } from '@linagora/rabbitmq-client';
 import { and, eq, inArray, isNotNull, isNull, lt, lte, ne, notInArray, or, sql } from 'drizzle-orm';
+import type { Logger } from 'pino';
 import type { Activity } from '../../events/activity.js';
 import { NotYetKnownError, RejectedEventError } from '../../events/errors.js';
 import { enqueue } from '../../events/outbox.js';
 import type { Db, Lock } from '../../infra/db.js';
-import type { Logger } from '../../infra/logger.js';
 import { AddressTakenError, type TeamMailboxRole, type TmailClient } from '../../product/port.js';
 import { candidateNames, mailboxName } from './address.js';
 import {
@@ -245,7 +245,7 @@ export const createSpaceService = ({
       try {
         await apply(spaceId);
       } catch (err) {
-        logger.error({ err, spaceId }, 'space update failed');
+        logger.warn({ err, spaceId }, 'space update failed');
         failures.push(err);
       }
     }
@@ -454,7 +454,7 @@ export const createSpaceService = ({
           await db.update(spaces).set({ address: null }).where(eq(spaces.spaceId, spaceId));
           logger.info({ spaceId, address }, 'team mailbox deleted');
         } catch (err) {
-          logger.error({ err, spaceId }, 'team mailbox deletion failed, retried at the next purge');
+          logger.warn({ err, spaceId }, 'team mailbox deletion failed, retried at the next purge');
         }
       }
     },

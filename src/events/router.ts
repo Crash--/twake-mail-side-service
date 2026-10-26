@@ -1,6 +1,6 @@
 import { DeadLetterError, type RabbitMQMessageHandler } from '@linagora/rabbitmq-client';
 import * as Sentry from '@sentry/node';
-import type { Logger } from '../infra/logger.js';
+import type { Logger } from 'pino';
 import type { Metrics, Outcome } from '../infra/metrics.js';
 import { MalformedEventError, NotYetKnownError } from './errors.js';
 import type { Parking } from './parking.js';

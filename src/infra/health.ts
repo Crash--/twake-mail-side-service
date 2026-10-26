@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import type { Logger } from './logger.js';
+import type { Logger } from 'pino';
 import type { Metrics } from './metrics.js';
 
 export interface HealthServer {

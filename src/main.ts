@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { createLogger } from '@linagora/twake-node-telemetry';
 import * as Sentry from '@sentry/node';
 import { loadConfig } from './config.js';
 import { createActivity } from './events/activity.js';
@@ -8,7 +9,6 @@ import { createParking, parkedCount } from './events/parking.js';
 import { createRouter } from './events/router.js';
 import { createDbClient } from './infra/db.js';
 import { createHealthServer } from './infra/health.js';
-import { logger } from './infra/logger.js';
 import { createMetrics } from './infra/metrics.js';
 import { createConsumer, deadLetters } from './infra/rabbitmq.js';
 import { createMailService, messageKey } from './modules/mail/service.js';
@@ -16,6 +16,9 @@ import { createSpaceService } from './modules/spaces/service.js';
 import { createTmailClient } from './product/api.js';
 
 const PURGE_INTERVAL_MS = 60 * 60 * 1000;
+
+// Not LOG_LEVEL yet: loadConfig validates it, then main applies it.
+const logger = createLogger({ service: 'twake-mail-side-service', level: 'info' });
 
 const main = async (): Promise<void> => {
   const config = loadConfig();
@@ -124,8 +127,8 @@ const main = async (): Promise<void> => {
   const purge = async () => {
     await spaces
       .purgeDeleted()
-      .catch((err) => logger.error({ err }, 'purge of deleted spaces failed'));
-    await inbox.purge().catch((err) => logger.error({ err }, 'purge of the inbox failed'));
+      .catch((err) => logger.warn({ err }, 'purge of deleted spaces failed'));
+    await inbox.purge().catch((err) => logger.warn({ err }, 'purge of the inbox failed'));
   };
   void purge();
   const purger = setInterval(() => void purge(), PURGE_INTERVAL_MS);
@@ -156,7 +159,6 @@ const main = async (): Promise<void> => {
       process.exit(exitCode);
     } catch (err) {
       logger.error({ err }, 'error during shutdown');
-      Sentry.captureException(err);
       await Sentry.flush(2000);
       process.exit(1);
     }
@@ -168,15 +170,17 @@ const main = async (): Promise<void> => {
     logger.fatal({ err }, 'uncaught exception');
     void shutdown('uncaughtException', 1);
   });
-  process.on('unhandledRejection', (reason) => {
-    logger.fatal({ reason }, 'unhandled rejection');
-    void shutdown('unhandledRejection', 1);
-  });
+  // With a DSN, Sentry owns the exit: it reports the rejection, then exits with code 1.
+  if (!Sentry.isEnabled()) {
+    process.on('unhandledRejection', (reason) => {
+      logger.fatal({ err: reason }, 'unhandled rejection');
+      void shutdown('unhandledRejection', 1);
+    });
+  }
 };
 
 main().catch(async (err) => {
   logger.fatal({ err }, 'fatal error during startup');
-  Sentry.captureException(err);
   await Sentry.flush(2000);
   process.exit(1);
 });

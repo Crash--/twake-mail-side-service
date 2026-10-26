@@ -4,8 +4,8 @@ import {
   type RabbitMQMessageHandler,
 } from '@linagora/rabbitmq-client';
 import { asc, count, eq } from 'drizzle-orm';
+import type { Logger } from 'pino';
 import type { Db, TryLock } from '../infra/db.js';
-import type { Logger } from '../infra/logger.js';
 import { MalformedEventError, NotYetKnownError } from './errors.js';
 import type { Handler } from './router.js';
 import { parkedEvents } from './schema.js';
@@ -97,7 +97,7 @@ export const createParking = ({
       const parked = await db.select().from(parkedEvents).orderBy(asc(parkedEvents.id));
       for (const row of parked) {
         await replay(row, now).catch((err) =>
-          logger.error({ err, messageId: row.properties.messageId }, 'parked event retry failed'),
+          logger.warn({ err, messageId: row.properties.messageId }, 'parked event retry failed'),
         );
       }
     });
@@ -105,7 +105,7 @@ export const createParking = ({
 
   const tick = (intervalMs: number) => {
     running = (client.isConnected() ? retry() : Promise.resolve())
-      .catch((err) => logger.error({ err }, 'parked events retry failed'))
+      .catch((err) => logger.warn({ err }, 'parked events retry failed'))
       .finally(() => {
         if (timer) timer = setTimeout(() => tick(intervalMs), intervalMs);
       });
