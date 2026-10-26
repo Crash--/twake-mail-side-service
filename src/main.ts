@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { createLogger } from '@linagora/twake-node-telemetry';
 import * as Sentry from '@sentry/node';
 import { loadConfig } from './config.js';
 import { createActivity } from './events/activity.js';
@@ -8,7 +9,6 @@ import { createParking, parkedCount } from './events/parking.js';
 import { createRouter } from './events/router.js';
 import { createDbClient } from './infra/db.js';
 import { createHealthServer } from './infra/health.js';
-import { logger } from './infra/logger.js';
 import { createMetrics } from './infra/metrics.js';
 import { createConsumer, deadLetters } from './infra/rabbitmq.js';
 import { createMailService, messageKey } from './modules/mail/service.js';
@@ -16,6 +16,9 @@ import { createSpaceService } from './modules/spaces/service.js';
 import { createTmailClient } from './product/api.js';
 
 const PURGE_INTERVAL_MS = 60 * 60 * 1000;
+
+// Not LOG_LEVEL yet: loadConfig validates it, then main applies it.
+const logger = createLogger({ service: 'twake-mail-side-service', level: 'info' });
 
 const main = async (): Promise<void> => {
   const config = loadConfig();

@@ -17,7 +17,6 @@ src/
     db.ts                 drizzle over postgres.js, advisory locks, migrations
     health.ts             /health/live and /health/ready, and /metrics on its own port
     metrics.ts            prom-client registry
-    logger.ts             pino
   product/
     port.ts               The TMail interface the logic depends on
     api.ts                Its webadmin adapter

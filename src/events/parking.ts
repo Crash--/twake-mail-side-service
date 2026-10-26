@@ -4,8 +4,8 @@ import {
   type RabbitMQMessageHandler,
 } from '@linagora/rabbitmq-client';
 import { asc, count, eq } from 'drizzle-orm';
+import type { Logger } from 'pino';
 import type { Db, TryLock } from '../infra/db.js';
-import type { Logger } from '../infra/logger.js';
 import { MalformedEventError, NotYetKnownError } from './errors.js';
 import type { Handler } from './router.js';
 import { parkedEvents } from './schema.js';

@@ -63,7 +63,7 @@ Runtime:
 - `@linagora/rabbitmq-client`: connection, reconnects, queue and dead letter declaration, in process retries.
 - `drizzle-orm` over `postgres` (postgres.js): queries and migrations.
 - `zod`: configuration and event payload validation.
-- `pino`: JSON logs.
+- `pino`, through [`@linagora/twake-node-telemetry`](https://github.com/linagora/twake-libs/tree/%40linagora/twake-node-telemetry%401.1.0/packages/twake-node-telemetry): JSON logs with `service`, the level as text and an ISO `time`, secrets and the `email` key masked.
 - `prom-client`: Prometheus metrics.
 - `@sentry/node`: error reports.
 
